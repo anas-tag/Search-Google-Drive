@@ -75,7 +75,7 @@ leurs extraits de texte.
 Choisissez une catégorie dans les cartes au-dessus du champ de recherche :
 **Tous les formats**, **Markdown**, **Images**, **PDF**, **Documents**, **Autres fichiers**.
 Le titre, les indications et les résultats s'adaptent au format sélectionné.
-Le navigateur mémorise le format, le périmètre et l'option Mot exact pour les visites
+Le navigateur mémorise le format, le périmètre et les options Mot exact / Expression exacte pour les visites
 suivantes, sur la même adresse locale. Le terme recherché n'est pas mémorisé.
 Si le stockage navigateur est interdit, les choix restent actifs pendant la visite.
 
@@ -97,6 +97,17 @@ le mot `boot`. Plusieurs mots doivent tous être présents dans les champs reche
 Les opérateurs FTS sont traités comme du texte ordinaire. La ponctuation sépare les
 mots, selon FTS5 : `C++` recherche le mot `C`, sans distinction des signes `+`.
 Il n'y a ni recherche fuzzy ni recherche par sous-chaîne au milieu d'un mot.
+
+Pour retrouver **`github-perso` exactement**, saisissez `github-perso` sans guillemets
+et cochez **Expression exacte**. Cette option conserve l'ordre, les espaces, les
+tirets et les autres signes de toute la saisie ; elle exclut `github perso`,
+`perso github` et `github-personnel`. La casse est ignorée (`GitHub-Perso` correspond),
+mais les accents doivent être identiques dans cette option. L'expression doit être
+délimitée par le début/la fin du texte ou des séparateurs, et non prolongée par des
+lettres ou chiffres. Le surlignage porte sur l'expression complète. Mot exact est
+désactivé visuellement pendant ce mode, puis redevient disponible quand on le décoche.
+Le filtre s'applique au nom ou au contenu selon le périmètre choisi, avant le comptage
+et la pagination, à partir des données SQLite ; aucune réindexation n'est nécessaire.
 
 ## Indexation
 
@@ -139,6 +150,8 @@ fichiers `-wal` / `-shm`, puis redémarrez.
 Valeurs de `type` : `all`, `content`, `files`, `directories`.
 Paramètre facultatif `format` : `all` (par défaut), `markdown`, `images`, `pdf`,
 `documents`, `other`. Exemple : `/api/search?q=schema&format=images&type=files`.
+Paramètre `literal=true` : expression exacte, y compris ponctuation et espaces.
+Exemple : `/api/search?q=github-perso&type=files&literal=true`.
 Le filtre est appliqué avant le comptage et la pagination. Une combinaison
 `type=content&format=pdf` ne donne aucun résultat, le contenu PDF n'étant pas indexé.
 Les actions POST nécessitent le jeton `X-Local-Token` présent dans la page locale.
@@ -171,7 +184,7 @@ la pagination, l'échappement HTML, les actions locales et le confinement des ch
 
 ### Vérification de cette livraison
 
-- 58 tests Python et 6 tests JavaScript réussis sous Windows avec Python 3.13.15 et SQLite 3.50.4.
+- 68 tests Python et 7 tests JavaScript réussis sous Windows avec Python 3.13.15 et SQLite 3.50.4.
 - Démarrage réel d'Uvicorn sur `127.0.0.1:8000` : page, assets, recherche et statut répondent HTTP 200, même avec la racine inaccessible.
 - Jeu synthétique de 3 000 Markdown : index initial en 3,56 s ; recherche médiane
   de 32,5 ms, maximum de 47,5 ms sur 20 requêtes ; scan incrémental de 1,81 s,

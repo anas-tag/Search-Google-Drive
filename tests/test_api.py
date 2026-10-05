@@ -213,3 +213,15 @@ def test_changing_root_indexes_the_new_folder(library, tmp_path):
         assert app.state.initial_index_done.wait(5)
         assert browser.get("/api/search?q=nouveau").json()["total"] == 1
         assert browser.get("/api/search?q=ancien").json()["total"] == 0
+
+
+def test_expression_exact_api(client):
+    browser, root, _ = client
+    (root / "literal.md").write_text("github-perso", encoding="utf-8")
+    (root / "words.md").write_text("github perso", encoding="utf-8")
+    browser.post("/api/reindex", headers=action_headers(browser))
+    response = browser.get("/api/search", params={"q": "github-perso", "type": "files", "literal": "true"})
+    assert response.status_code == 200
+    assert response.json()["total"] == 1
+    assert response.json()["results"][0]["filename"] == "literal.md"
+    assert 'id="literal"' in browser.get("/").text

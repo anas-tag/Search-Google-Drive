@@ -166,3 +166,74 @@ def test_files_find_names_and_content_once_without_snippets(library):
     assert first.results[0].id != second.results[0].id
     pdf = search(database, "bootloader", "files", file_format="pdf")
     assert pdf.total == 1
+
+
+@pytest.fixture
+def literal_library(library):
+    root, database, indexer = library
+    for name, content in {
+        "github-perso.md": "Configuration du dépôt.",
+        "github-notes.md": "github : compte perso.",
+        "notes.md": "Utilisez GitHub-Perso pour ce dépôt.",
+        "space.md": "github perso",
+        "reverse.md": "perso github",
+        "prefix.md": "github-personnel github perso",
+        "embedded.md": "mongithub-perso2 github perso",
+        "mixed.md": "github-perso dans le bon contexte, github ailleurs et perso plus loin.",
+    }.items():
+        (root / name).write_text(content, encoding="utf-8")
+    (root / "github-perso").mkdir()
+    indexer.run()
+    return database
+
+
+@pytest.mark.parametrize("scope,total", [("all", 4), ("files", 3), ("content", 2), ("directories", 1)])
+def test_literal_preserves_hyphen_order_and_word_boundaries(literal_library, scope, total):
+    response = search(literal_library, "github-perso", scope, literal=True)
+    assert response.total == total
+    assert not {"github-notes.md", "space.md", "reverse.md", "prefix.md", "embedded.md"}.intersection(item.filename for item in response.results)
+
+
+def test_literal_highlighting_is_whole_expression_and_correct_excerpt(literal_library):
+    results = search(literal_library, "github-perso", "all", literal=True).results
+    titled = next(item for item in results if item.filename == "github-perso.md")
+    assert titled.filename_highlight == "<mark>github-perso</mark>.md"
+    contents = next(item for item in results if item.filename == "notes.md")
+    assert "<mark>GitHub-Perso</mark>" in contents.snippet
+    mixed = next(item for item in results if item.filename == "mixed.md")
+    assert mixed.snippet.count("<mark>") == 1
+    assert "<mark>github-perso</mark>" in mixed.snippet
+
+
+def test_literal_filters_before_pagination_and_keeps_saved_formats(literal_library):
+    first = search(literal_library, "github-perso", "files", limit=1, literal=True)
+    second = search(literal_library, "github-perso", "files", limit=1, offset=1, literal=True)
+    assert first.total == second.total == 3
+    assert first.results[0].id != second.results[0].id
+    assert all(item.snippet == "" for item in first.results + second.results)
+    assert search(literal_library, "github-perso", "files", file_format="pdf", literal=True).total == 0
+
+
+def test_word_exact_remains_different_from_literal(literal_library):
+    assert search(literal_library, "github-perso", "files", exact=True).total > 3
+    assert search(literal_library, "github-perso", "files", literal=True).total == 3
+
+
+def test_literal_escapes_regex_and_html(library):
+    root, database, indexer = library
+    (root / "note.md").write_text("Recherche <github-perso> et autres github perso.", encoding="utf-8")
+    (root / "decoy.md").write_text("github-perso", encoding="utf-8")
+    indexer.run()
+    response = search(database, "<github-perso>", "content", literal=True)
+    assert response.total == 1
+    assert "<mark>&lt;github-perso&gt;</mark>" in response.results[0].snippet
+
+
+def test_literal_respects_exact_spacing(library):
+    root, database, indexer = library
+    (root / "one.md").write_text("github perso", encoding="utf-8")
+    (root / "two.md").write_text("github  perso", encoding="utf-8")
+    indexer.run()
+    response = search(database, "github  perso", "content", literal=True)
+    assert response.total == 1
+    assert response.results[0].filename == "two.md"

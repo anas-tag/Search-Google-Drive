@@ -23,6 +23,7 @@ function restorePreferences() {
       }
     }
     $("#exact").checked = preferences.exact === true;
+    $("#literal").checked = preferences.literal === true;
   } catch {
     // La recherche fonctionne également si le navigateur interdit le stockage.
   }
@@ -34,6 +35,7 @@ function savePreferences() {
       format: selectedFormat().value,
       type: $('input[name="type"]:checked').value,
       exact: $("#exact").checked,
+      literal: $("#literal").checked,
     }));
   } catch {
     $(".preference-note").textContent = "Votre choix reste appliqué sur cette page. Le navigateur ne permet pas de le mémoriser pour la prochaine visite.";
@@ -42,6 +44,7 @@ function savePreferences() {
 
 function updateFormat() {
   const option = selectedFormat();
+  $("#exact").disabled = $("#literal").checked;
   const inputs = [...document.querySelectorAll('input[name="type"]')];
   for (const input of inputs) {
     input.disabled = (input.value === "content" && !["all", "markdown"].includes(option.value))
@@ -52,7 +55,7 @@ function updateFormat() {
   }
   $("#search-title").textContent = option.dataset.heading;
   $("#query").placeholder = option.dataset.placeholder;
-  $("#format-hint").textContent = option.dataset.hint;
+  $("#format-hint").textContent = option.dataset.hint + ($("#literal").checked ? " Expression exacte : les espaces, tirets et signes saisis sont conservés." : "");
   $("#active-format").textContent = option.dataset.label;
   const emptyTitle = $(".empty h3");
   const emptyHint = $(".empty p");
@@ -154,7 +157,7 @@ async function runSearch(append = false) {
   const query = $("#query").value.trim();
   if (!query) return;
   const current = ++generation;
-  if (!append) searchState = {q: query, type: $('input[name="type"]:checked').value, format: selectedFormat().value, exact: $("#exact").checked, offset: 0};
+  if (!append) searchState = {q: query, type: $('input[name="type"]:checked').value, format: selectedFormat().value, exact: $("#exact").checked, literal: $("#literal").checked, offset: 0};
   if (!searchState) return;
   $("#search-button").disabled = true;
   $("#load-more").disabled = true;
@@ -181,7 +184,7 @@ async function runSearch(append = false) {
 }
 
 $("#search-form").addEventListener("submit", (event) => { event.preventDefault(); savePreferences(); runSearch(); });
-document.querySelectorAll('input[name="format"], input[name="type"], #exact').forEach((input) => input.addEventListener("change", () => {
+document.querySelectorAll('input[name="format"], input[name="type"], #exact, #literal').forEach((input) => input.addEventListener("change", () => {
   updateFormat();
   savePreferences();
   runSearch();

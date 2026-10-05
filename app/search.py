@@ -10,6 +10,26 @@ from app.formats import FORMAT_EXTENSIONS
 from app.models import FileFormat, SearchResponse, SearchResult, SearchType
 
 
+def literal_pattern(query: str) -> re.Pattern[str]:
+    """Expression entière, ponctuation conservée, sans préfixe de mot."""
+    return re.compile(r"(?<![^\W_])" + re.escape(query) + r"(?![^\W_])", re.IGNORECASE)
+
+
+def mark_literal(text: str, pattern: re.Pattern[str], start: str, end: str,
+                 excerpt: bool = False) -> str:
+    if excerpt:
+        match = pattern.search(text)
+        if match is None:
+            return ""
+        context = min(80, max(0, (250 - len(match.group())) // 2))
+        left = max(0, match.start() - context)
+        right = min(len(text), left + 250)
+        window = text[left:right]
+        marked = pattern.sub(lambda found: start + found.group() + end, window)
+        return ("… " if left else "") + marked + (" …" if right < len(text) else "")
+    return pattern.sub(lambda found: start + found.group() + end, text)
+
+
 def snippet_html(value: str, start: str, end: str) -> str:
     """Fenêtre de 250 caractères, sans couper les balises de surlignage."""
     parts = re.split(f"({re.escape(start)}|{re.escape(end)})", value)
@@ -57,8 +77,9 @@ def match_expression(query: str, search_type: SearchType, exact: bool) -> str:
 
 def search(database: Path, query: str, search_type: SearchType = "all",
            exact: bool = False, limit: int = 50, offset: int = 0,
-           file_format: FileFormat = "all") -> SearchResponse:
-    expression = match_expression(query, search_type, exact)
+           file_format: FileFormat = "all", literal: bool = False) -> SearchResponse:
+    expression = match_expression(query, search_type, exact or literal)
+    pattern = literal_pattern(query) if literal else None
     start, end = f"__{uuid.uuid4().hex}_start__", f"__{uuid.uuid4().hex}_end__"
     kind = "directory" if search_type == "directories" else "file"
     condition = "1=1" if search_type == "all" else "d.kind=?"
@@ -79,12 +100,20 @@ def search(database: Path, query: str, search_type: SearchType = "all",
         filter_params += extensions
     # Seules des constantes internes composent SQL, les valeurs sont paramétrées.
     with connect(database) as db:
+        if pattern is not None:
+            db.create_function("expression_matches", 1, lambda text: int(pattern.search(text) is not None), deterministic=True)
+            columns = ("d.content",) if search_type == "content" else ("d.filename",)
+            if search_type in ("all", "files"):
+                columns = ("d.filename", "d.content")
+            condition += " AND (" + " OR ".join(f"expression_matches({column})" for column in columns) + ")"
+        content_column = "d.content" if literal else "''"
         total = db.execute(f"""
             SELECT count(*) FROM documents_fts JOIN documents d ON d.id=documents_fts.rowid
             WHERE documents_fts MATCH ? AND {condition}
         """, (expression, *filter_params)).fetchone()[0]
         rows = db.execute(f"""
-            SELECT d.id, d.kind, d.filename, d.relative_path, d.path, d.extension,
+            SELECT d.id, d.kind, d.filename, d.directory, d.relative_path, d.path, d.extension,
+                {content_column} AS literal_content,
                 snippet(documents_fts, 0, ?, ?, ' … ', 32) AS excerpt,
                 highlight(documents_fts, 1, ?, ?) AS highlighted_name,
                 highlight(documents_fts, 2, ?, ?) AS highlighted_directory
@@ -99,10 +128,16 @@ def search(database: Path, query: str, search_type: SearchType = "all",
 
     results = []
     for row in rows:
-        name = safe_highlight(row["highlighted_name"])
-        directory = safe_highlight(row["highlighted_directory"])
-        result_type = "directory" if row["kind"] == "directory" else "file"
+        highlighted_name = row["highlighted_name"]
+        highlighted_directory = row["highlighted_directory"]
         excerpt = row["excerpt"]
+        if pattern is not None:
+            highlighted_name = mark_literal(row["filename"], pattern, start, end)
+            highlighted_directory = mark_literal(row["directory"], pattern, start, end)
+            excerpt = mark_literal(row["literal_content"], pattern, start, end, excerpt=True)
+        name = safe_highlight(highlighted_name)
+        directory = safe_highlight(highlighted_directory)
+        result_type = "directory" if row["kind"] == "directory" else "file"
         if start in excerpt and search_type in ("all", "content") and result_type == "file":
             result_type = "content"
         results.append(SearchResult(

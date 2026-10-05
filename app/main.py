@@ -119,10 +119,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def api_search(q: str = Query(min_length=1, max_length=200),
                    type: SearchType = "all", exact: bool = False,
                    limit: int = Query(50, ge=1, le=100), offset: int = Query(0, ge=0),
-                   file_format: FileFormat = Query("all", alias="format")):
+                   file_format: FileFormat = Query("all", alias="format"), literal: bool = False):
         query = q.strip()
         try:
-            return search(settings.database_path, query, type, exact, limit, offset, file_format)
+            return search(settings.database_path, query, type, exact, limit, offset, file_format, literal)
         except ValueError as error:
             raise HTTPException(422, str(error)) from error
 

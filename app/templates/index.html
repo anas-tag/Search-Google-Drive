@@ -27,7 +27,10 @@
         <label class="filter"><input type="radio" name="type" value="content"><span>Contenu</span></label>
         <label class="filter"><input type="radio" name="type" value="files"><span>Fichiers</span></label>
         <label class="filter"><input type="radio" name="type" value="directories"><span>Dossiers</span></label>
-      </fieldset><label class="exact"><input type="checkbox" id="exact"> Mot exact</label></div>
+      </fieldset><div class="exact-options">
+        <label class="exact"><input type="checkbox" id="exact"> Mot exact</label>
+        <label class="exact" title="Respecte l’ordre, les espaces, les tirets et la ponctuation de toute la saisie."><input type="checkbox" id="literal"> Expression exacte</label>
+      </div></div>
     </form>
     <div class="index-bar"><div><p id="index-count">Chargement de l’index…</p><p id="last-index" class="muted"></p></div><button id="reindex" class="secondary" type="button">↻ Réindexer</button></div>
     <div id="index-progress" class="index-progress" role="status" aria-live="polite" hidden>

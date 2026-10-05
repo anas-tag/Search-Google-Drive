@@ -21,7 +21,7 @@ function page(storage) {
   const formats = ["all", "markdown", "images", "pdf", "documents", "other"].map((value) => ({...element(value), dataset: {label: value, heading: `Recherche ${value}`, placeholder: value, hint: `Aide ${value}`}}));
   const types = ["all", "content", "files", "directories"].map(element);
   const nodes = new Map();
-  for (const selector of ['meta[name="local-token"]', "#query", "#exact", "#search-title", "#format-hint", "#active-format", ".empty h3", ".empty p", ".preference-note", "#search-form", "#load-more", "#reindex", "#index-count", "#last-index", "#root", "#message", "#index-progress", "#scan-count", "#scan-path", "#results", "#result-count", "#search-button"]) nodes.set(selector, element());
+  for (const selector of ['meta[name="local-token"]', "#query", "#exact", "#literal", "#search-title", "#format-hint", "#active-format", ".empty h3", ".empty p", ".preference-note", "#search-form", "#load-more", "#reindex", "#index-count", "#last-index", "#root", "#message", "#index-progress", "#scan-count", "#scan-path", "#results", "#result-count", "#search-button"]) nodes.set(selector, element());
   function findById(node, id) {
     if (node.id === id) return node;
     for (const child of node.children) {
@@ -38,7 +38,7 @@ function page(storage) {
     querySelectorAll(selector) {
       if (selector === 'input[name="format"]') return formats;
       if (selector === 'input[name="type"]') return types;
-      return [...formats, ...types, nodes.get("#exact")];
+      return [...formats, ...types, nodes.get("#exact"), nodes.get("#literal")];
     },
     createElement: () => element(),
   };
@@ -129,4 +129,25 @@ test("Le statut affiche le scan en cours et interdit un second lancement", async
   assert.equal(current.nodes.get("#reindex").disabled, true);
   assert.match(current.nodes.get("#scan-count").textContent, /42 fichiers/);
   assert.equal(current.nodes.get("#scan-path").textContent, "STM32/note.md");
+});
+
+test("Expression exacte est mémorisée et transmise dans la recherche", async () => {
+  const saved = storage();
+  const first = page(saved);
+  first.nodes.get("#literal").checked = true;
+  vm.runInContext("updateFormat(); savePreferences();", first.context);
+  const second = page(saved);
+  assert.equal(second.nodes.get("#literal").checked, true);
+  assert.equal(second.nodes.get("#exact").disabled, true);
+  assert.match(second.nodes.get("#format-hint").textContent, /Expression exacte/);
+  second.nodes.get("#query").value = "github-perso";
+  second.context.fetch = async (url) => {
+    assert.match(url, /q=github-perso/);
+    assert.match(url, /literal=true/);
+    return {ok: true, json: async () => ({total: 0, results: []})};
+  };
+  await vm.runInContext("runSearch()", second.context);
+  second.nodes.get("#literal").checked = false;
+  vm.runInContext("updateFormat();", second.context);
+  assert.equal(second.nodes.get("#exact").disabled, false);
 });
