@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="local-token" content="{{ token }}">
+  <title>Recherche dans les tutoriels</title>
+  <link rel="stylesheet" href="{{ url_for('static', path='style.css') }}">
+  <script src="{{ url_for('static', path='app.js') }}" defer></script>
+</head>
+<body>
+<main>
+  <header><div class="brand-icon" aria-hidden="true">⌕</div><div><p class="eyebrow">VOTRE BIBLIOTHÈQUE LOCALE</p><h1 id="search-title">Recherche dans les tutoriels</h1><p class="subtitle">Retrouvez une idée, un fichier ou un dossier en quelques mots.</p></div></header>
+  <section class="search-panel" aria-label="Recherche">
+    <form id="search-form">
+      <fieldset class="format-picker"><legend>Quel format recherchez-vous ?</legend>
+        {% for format in formats %}
+        <label class="format-card"><input type="radio" name="format" value="{{ format.value }}" data-label="{{ format.label }}" data-heading="{{ format.heading }}" data-placeholder="{{ format.placeholder }}" data-hint="{{ format.hint }}"{% if format.value == 'all' %} checked{% endif %}><span><b aria-hidden="true">{{ format.icon }}</b>{{ format.label }}</span></label>
+        {% endfor %}
+      </fieldset>
+      <p class="preference-note">Votre choix reste appliqué aux prochaines recherches, même après avoir fermé la page.</p>
+      <label for="query">Mot à rechercher</label>
+      <div class="search-row"><input id="query" name="q" type="search" placeholder="Ex. bootloader, résumé, Linux…" aria-describedby="format-hint" maxlength="200" required autofocus><button id="search-button" type="submit">Rechercher <span aria-hidden="true">→</span></button></div>
+      <p id="format-hint" class="format-hint">Contenu Markdown, noms des fichiers et noms des dossiers.</p>
+      <div class="options"><fieldset><legend class="sr-only">Rechercher dans</legend>
+        <label class="filter"><input type="radio" name="type" value="all" checked><span>Tous</span></label>
+        <label class="filter"><input type="radio" name="type" value="content"><span>Contenu</span></label>
+        <label class="filter"><input type="radio" name="type" value="files"><span>Fichiers</span></label>
+        <label class="filter"><input type="radio" name="type" value="directories"><span>Dossiers</span></label>
+      </fieldset><label class="exact"><input type="checkbox" id="exact"> Mot exact</label></div>
+    </form>
+    <div class="index-bar"><div><p id="index-count">Chargement de l’index…</p><p id="last-index" class="muted"></p></div><button id="reindex" class="secondary" type="button">↻ Réindexer</button></div>
+    <div id="index-progress" class="index-progress" role="status" aria-live="polite" hidden>
+      <p><span class="spinner" aria-hidden="true"></span><strong>Indexation en cours</strong> <span id="scan-count"></span></p>
+      <p id="scan-path" class="muted"></p>
+      <p class="muted">Vous pouvez utiliser le dernier index disponible. Les nouveaux résultats apparaîtront à la fin du scan.</p>
+    </div>
+    <details><summary>Dossier de documentation</summary><p id="root" class="root"></p></details>
+  </section>
+  <p id="message" role="status" aria-live="polite" hidden></p>
+  <section class="results-section" aria-label="Résultats"><div class="results-heading"><h2>Résultats <span id="active-format" class="active-format">Tous les formats</span></h2><span id="result-count" class="muted"></span></div>
+    <div id="results" aria-live="polite"><div class="empty"><span aria-hidden="true">⌕</span><h3>Vos tutoriels, à portée de recherche</h3><p>Saisissez un mot pour explorer le contenu Markdown,<br>les noms de fichiers et les noms de dossiers.</p></div></div>
+    <button id="load-more" class="secondary" hidden>Afficher la suite</button>
+  </section>
+  <footer>Recherche locale · Vos documents restent sur votre ordinateur.</footer>
+</main>
+</body>
+</html>
