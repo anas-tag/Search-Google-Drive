@@ -17,6 +17,25 @@ Gardez cette fenêtre ouverte. Pour arrêter, utilisez `Ctrl+C`.
 Le serveur écoute exclusivement sur **127.0.0.1:8000** avec cette commande de lancement.
 N'utilisez pas `--host 0.0.0.0`. Lancez une seule instance et un seul worker.
 
+## Réindexation automatique (Planificateur Windows)
+
+La tâche `SearchGoogleDrive-Reindex` exécute `scripts\reindex.ps1`. Si le serveur
+est arrêté, le script le démarre en arrière-plan, attend qu'il soit prêt, actualise
+l'index puis arrête uniquement le serveur temporaire qu'il a lancé, même en cas
+d'erreur. Un serveur déjà ouvert reste actif. Si celui-ci indexe déjà les fichiers,
+la tâche ne lance pas de scan supplémentaire.
+
+Le serveur n'a donc pas besoin de rester ouvert entre les exécutions. Lancez
+`scripts\start.bat` quand vous souhaitez utiliser la recherche ; l'index enregistré
+est réutilisé. Google Drive doit rester disponible et votre session Windows doit
+être ouverte (la tâche créée par le script d'installation utilise votre session).
+
+Les résultats et erreurs sont consignés dans `data\scheduled-reindex.log`, avec
+les étapes `START`, `OK` et `STOP` lorsqu'un serveur temporaire est utilisé.
+Le script retourne le code `0` en cas de réussite ou de scan déjà en cours, et `1`
+en cas d'erreur. La tâche existante utilise directement le script mis à jour :
+aucune réinstallation n'est nécessaire si elle pointe vers `scripts\reindex.ps1`.
+
 ## Installation manuelle (PowerShell)
 
 Depuis le dossier du projet :
@@ -109,6 +128,22 @@ désactivé visuellement pendant ce mode, puis redevient disponible quand on le 
 Le filtre s'applique au nom ou au contenu selon le périmètre choisi, avant le comptage
 et la pagination, à partir des données SQLite ; aucune réindexation n'est nécessaire.
 
+## Fichiers à revoir
+
+L'onglet **À revoir** liste uniquement les fichiers Markdown du dossier Tutorial,
+du plus récent au plus ancien selon leur **dernière modification enregistrée**.
+Aucun mot de recherche n'est nécessaire. Choisissez Aujourd'hui, Hier, Cette semaine
+(du lundi à aujourd'hui), 7 derniers jours (aujourd'hui et les six jours précédents),
+ou deux dates personnalisées. Pour une date précise, choisissez la même date dans
+les deux champs. Les deux dates sont incluses dans le fuseau horaire du navigateur,
+y compris lors des changements d'heure.
+
+Chaque résultat affiche le titre, le chemin relatif, la date et les boutons
+**Ouvrir** / **Ouvrir le dossier**. La liste est paginée par 50 fichiers.
+**Réindexer** actualise aussi cette vue. La liste ne conserve pas l'historique des
+modifications : un fichier modifié à nouveau prend sa nouvelle date. Elle ne suit
+pas encore la date de création ni les fichiers déjà revus.
+
 ## Indexation
 
 - Scan automatique uniquement lorsqu'aucun index validé n'existe pour la racine configurée
@@ -144,8 +179,13 @@ fichiers `-wal` / `-shm`, puis redémarrez.
 | `GET /` | Interface Jinja2 |
 | `GET /api/search?q=bootloader&type=all&exact=false&limit=50&offset=0` | Recherche FTS5 |
 | `GET /api/status` | Compteurs, racine, dernière indexation et erreurs |
+| `GET /api/review?start=2026-10-12T00:00:00Z&end=2026-10-15T00:00:00Z` | Markdown par dernière modification |
 | `POST /api/reindex` | Scan incrémental |
 | `POST /api/open/{id}` avec `{"target":"file"}` ou `{"target":"directory"}` | Ouverture Windows |
+
+Pour `/api/review`, `start` est inclus et `end` est exclu. Les dates doivent inclure
+un fuseau horaire (`Z` ou un décalage). `limit` (1 à 100, défaut 50) et `offset`
+(défaut 0) contrôlent la pagination.
 
 Valeurs de `type` : `all`, `content`, `files`, `directories`.
 Paramètre facultatif `format` : `all` (par défaut), `markdown`, `images`, `pdf`,
@@ -173,6 +213,7 @@ Si Node.js est disponible, vérifiez aussi la mémorisation des préférences :
 
 ```powershell
 node --test tests/test_preferences.js
+node --test tests/test_review.js
 ```
 
 Node.js sert uniquement à ces tests optionnels ; l'application n'en dépend pas.
@@ -184,7 +225,7 @@ la pagination, l'échappement HTML, les actions locales et le confinement des ch
 
 ### Vérification de cette livraison
 
-- 68 tests Python et 7 tests JavaScript réussis sous Windows avec Python 3.13.15 et SQLite 3.50.4.
+- 76 tests Python et 11 tests JavaScript réussis sous Windows, incluant les périodes de révision, les bornes de dates, le changement d'heure et la pagination.
 - Démarrage réel d'Uvicorn sur `127.0.0.1:8000` : page, assets, recherche et statut répondent HTTP 200, même avec la racine inaccessible.
 - Jeu synthétique de 3 000 Markdown : index initial en 3,56 s ; recherche médiane
   de 32,5 ms, maximum de 47,5 ms sur 20 requêtes ; scan incrémental de 1,81 s,
@@ -200,6 +241,7 @@ app/database.py     Schéma SQLite, FTS5, triggers et connexions
 app/formats.py      Catégories de formats et extensions
 app/indexer.py      Scan incrémental et gestion des erreurs disque
 app/search.py       Requêtes FTS5, classement BM25 et surlignage
+app/review.py       Liste Markdown par dernière modification et période
 app/models.py       Modèles et validation
 app/main.py         FastAPI, démarrage, statut et actions Windows
 app/templates/     Interface Jinja2

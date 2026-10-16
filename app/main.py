@@ -5,6 +5,7 @@ import os
 import secrets
 import sqlite3
 import threading
+from datetime import datetime
 from contextlib import asynccontextmanager
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -22,6 +23,7 @@ from app.formats import FORMAT_OPTIONS
 from app.indexer import ROOT_ERROR, IndexBusy, Indexer, IndexUnavailable
 from app.models import FileFormat, IndexReport, OpenRequest, SearchResponse, SearchType
 from app.search import search
+from app.review import recent_markdown
 
 logger = logging.getLogger(__name__)
 
@@ -123,6 +125,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         query = q.strip()
         try:
             return search(settings.database_path, query, type, exact, limit, offset, file_format, literal)
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from error
+
+    @application.get("/api/review")
+    def api_review(start: datetime, end: datetime,
+                   limit: int = Query(50, ge=1, le=100), offset: int = Query(0, ge=0)):
+        try:
+            return recent_markdown(settings.database_path, start, end, limit, offset)
         except ValueError as error:
             raise HTTPException(422, str(error)) from error
 

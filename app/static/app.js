@@ -95,6 +95,7 @@ async function refreshStatus() {
     } else if (wasIndexing && searchState) {
       await runSearch();
     }
+    if (wasIndexing && !status.indexing && typeof refreshReview === "function") await refreshReview();
     wasIndexing = Boolean(status.indexing);
     if (status.error) message(status.error, true);
   } catch (error) {
@@ -200,6 +201,7 @@ $("#reindex").addEventListener("click", async () => {
   try {
     const report = await api("/api/reindex", {method: "POST", headers: {"X-Local-Token": token}});
     if (searchState) await runSearch();
+    if (typeof refreshReview === "function") await refreshReview();
     message(`${report.added} ajouts · ${report.updated} modifications · ${report.deleted} suppressions · ${report.unchanged} inchangés${report.skipped ? ` · ${report.skipped} éléments ignorés (voir les logs)` : ""}`, !report.success);
     await refreshStatus();
   } catch (error) { message(error.message, true); }

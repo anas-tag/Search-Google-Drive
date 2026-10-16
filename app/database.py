@@ -38,6 +38,8 @@ def initialize(path: Path) -> None:
                 size INTEGER NOT NULL,
                 indexed_at TEXT NOT NULL
             );
+            CREATE INDEX IF NOT EXISTS documents_review_dates
+                ON documents(modified_at DESC) WHERE kind='file' AND extension='.md';
             CREATE TABLE IF NOT EXISTS metadata (
                 key TEXT PRIMARY KEY, value TEXT NOT NULL
             );

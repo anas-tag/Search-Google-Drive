@@ -7,11 +7,33 @@
   <title>Recherche dans les tutoriels</title>
   <link rel="stylesheet" href="{{ url_for('static', path='style.css') }}">
   <script src="{{ url_for('static', path='app.js') }}" defer></script>
+  <script src="{{ url_for('static', path='review.js') }}" defer></script>
 </head>
 <body>
 <main>
   <header><div class="brand-icon" aria-hidden="true">⌕</div><div><p class="eyebrow">VOTRE BIBLIOTHÈQUE LOCALE</p><h1 id="search-title">Recherche dans les tutoriels</h1><p class="subtitle">Retrouvez une idée, un fichier ou un dossier en quelques mots.</p></div></header>
   <section class="search-panel" aria-label="Recherche">
+    <nav class="view-switch" aria-label="Vue des tutoriels">
+      <button id="search-view" type="button" aria-pressed="true">Recherche</button>
+      <button id="review-view" type="button" class="secondary" aria-pressed="false">À revoir</button>
+    </nav>
+    <form id="review-form" hidden>
+      <h2>Les Markdown récemment modifiés</h2>
+      <p class="format-hint">Choisissez une période pour retrouver les fichiers selon leur dernière modification.</p>
+      <div class="review-presets" aria-label="Périodes rapides">
+        <button type="button" class="secondary" data-period="today">Aujourd’hui</button>
+        <button type="button" class="secondary" data-period="yesterday">Hier</button>
+        <button type="button" class="secondary" data-period="week">Cette semaine</button>
+        <button type="button" class="secondary" data-period="seven" aria-pressed="true">7 derniers jours</button>
+      </div>
+      <div class="review-dates">
+        <label>Du <input id="review-start" type="date" required></label>
+        <label>Au <input id="review-end" type="date" required></label>
+        <button id="review-submit" type="submit">Afficher</button>
+      </div>
+      <p class="format-hint">Les deux dates sont incluses, dans le fuseau horaire de votre navigateur. « Cette semaine » commence le lundi.</p>
+      <p class="format-hint">La liste reflète la dernière indexation. Cliquez sur Réindexer pour actualiser les fichiers. Un fichier modifié à nouveau apparaîtra à sa date la plus récente.</p>
+    </form>
     <form id="search-form">
       <fieldset class="format-picker"><legend>Quel format recherchez-vous ?</legend>
         {% for format in formats %}
@@ -41,9 +63,15 @@
     <details><summary>Dossier de documentation</summary><p id="root" class="root"></p></details>
   </section>
   <p id="message" role="status" aria-live="polite" hidden></p>
-  <section class="results-section" aria-label="Résultats"><div class="results-heading"><h2>Résultats <span id="active-format" class="active-format">Tous les formats</span></h2><span id="result-count" class="muted"></span></div>
+  <section id="search-results" class="results-section" aria-label="Résultats"><div class="results-heading"><h2>Résultats <span id="active-format" class="active-format">Tous les formats</span></h2><span id="result-count" class="muted"></span></div>
     <div id="results" aria-live="polite"><div class="empty"><span aria-hidden="true">⌕</span><h3>Vos tutoriels, à portée de recherche</h3><p>Saisissez un mot pour explorer le contenu Markdown,<br>les noms de fichiers et les noms de dossiers.</p></div></div>
     <button id="load-more" class="secondary" hidden>Afficher la suite</button>
+  </section>
+  <section id="review-results-section" class="results-section" aria-label="Fichiers à revoir" hidden>
+    <div class="results-heading"><h2>À revoir <span class="active-format">Markdown</span></h2><span id="review-count" class="muted"></span></div>
+    <p id="review-message" role="status" aria-live="polite" hidden></p>
+    <div id="review-results" aria-live="polite"></div>
+    <button id="review-more" type="button" class="secondary" hidden>Afficher la suite</button>
   </section>
   <footer>Recherche locale · Vos documents restent sur votre ordinateur.</footer>
 </main>
